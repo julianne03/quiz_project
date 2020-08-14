@@ -1,7 +1,9 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:quiz_project/model/api_adapter.dart';
 import 'package:quiz_project/model/model_quiz.dart';
 import 'package:quiz_project/screen/screen_quiz.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -9,23 +11,26 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Quiz> quizes = [
-    Quiz.fromMap({
-      'title': 'test',
-      'candidates': ['a', 'b', 'c', 'd'],
-      'answer': 0
-    }),
-    Quiz.fromMap({
-      'title': 'test',
-      'candidates': ['a', 'b', 'c', 'd'],
-      'answer': 0
-    }),
-    Quiz.fromMap({
-      'title': 'test',
-      'candidates': ['a', 'b', 'c', 'd'],
-      'answer': 0
-    }),
-  ];
+  final GlobalKey<ScaffoldState> _scaffoldkey = GlobalKey<ScaffoldState>();
+  List<Quiz> quizs = [];
+  bool isLoading = false;
+
+  _fetchQuizs() async {
+    setState(() {
+      isLoading = true;
+    });
+    final response = await http.get(
+        'https://drf-quiz-test-j.herokuapp.com/quiz/3/');
+    if (response.statusCode == 200) {
+      setState(() {
+        quizs = parseQuizs(utf8.decode(response.bodyBytes));
+        isLoading = false;
+      });
+    } else {
+      throw Exception('failed to load data');
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
       onWillPop: () async => false,
       child: SafeArea(
         child: Scaffold(
+          key: _scaffoldkey,
           appBar: AppBar(
             title: Text('My Quiz App'),
             backgroundColor: Colors.deepPurple,
@@ -90,14 +96,27 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       color: Colors.deepPurple,
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => QuizScreen(
-                              quizs: quizes,
-                            ),
+                        _scaffoldkey.currentState.showSnackBar(SnackBar(
+                          content: Row(
+                            children: <Widget>[
+                              CircularProgressIndicator(),
+                              Padding(
+                                padding : EdgeInsets.only(left: width * 0.036),
+                              ),
+                              Text('로딩 중...')
+                            ],
                           ),
-                        );
+                        ));
+                        _fetchQuizs().whenComplete(() {
+                          return Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => QuizScreen(
+                                quizs: quizs,
+                              ),
+                            ),
+                          );
+                        });
                       },
                     ),
                   ),
